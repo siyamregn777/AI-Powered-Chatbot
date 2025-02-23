@@ -19,3 +19,11 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* globals.css */
+html, body {
+  background-color: #333;
+  margin: 0;
+  padding: 0;
+  height: 100%; /* Ensure the body takes up the full height of the viewport */
+}
