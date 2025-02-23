@@ -1,7 +1,16 @@
-import type { NextConfig } from "next";
+import { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude 'webworker-threads' from client-side bundles
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        'webworker-threads': false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

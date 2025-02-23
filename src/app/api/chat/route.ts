@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
-import db from '@/lib/db';
-import { findBestMatch } from '@/lib/knowledgeBase';
+import db from '@/lib/db.mjs'; // Update the import pathimport { findBestMatch } from '@/lib/knowledgeBase';
 import { ResultSetHeader } from 'mysql2'; // Import ResultSetHeader
+import { findBestMatch } from '@/lib/knowledgeBase';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

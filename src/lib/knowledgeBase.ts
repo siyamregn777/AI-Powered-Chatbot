@@ -1,7 +1,4 @@
 import stringSimilarity from 'string-similarity';
-import natural from 'natural';
-const { WordTokenizer, PorterStemmer, TfIdf } = natural;
-
 // Knowledge base with 100 questions and answers
 const knowledgeBase: { question: string; answer: string }[] = [
   {
@@ -375,28 +372,10 @@ const knowledgeBase: { question: string; answer: string }[] = [
 ];
 
 
-
 const stringSimilarityThreshold = 0.6; // 60% similarity
 
-// NLP setup
-const tokenizer = new WordTokenizer();
-const stemmer = PorterStemmer.stem;
-const tfidf = new TfIdf();
-const nlpSimilarityThreshold = 0.2; // TF-IDF similarity threshold
-
-// Preprocess questions for NLP
-const processedQuestions = knowledgeBase.map((entry) => ({
-  question: tokenizer.tokenize(entry.question).map(stemmer).join(' '),
-  answer: entry.answer,
-}));
-
-// Add processed questions to TF-IDF
-processedQuestions.forEach((entry) => {
-  tfidf.addDocument(entry.question);
-});
-
 // Function to find the best match using string similarity
-function findBestMatchStringSimilarity(userQuestion: string): string | null {
+export function findBestMatch(userQuestion: string): string | null {
   const questions = knowledgeBase.map((entry) => entry.question);
   const matches = stringSimilarity.findBestMatch(userQuestion, questions);
 
@@ -406,42 +385,5 @@ function findBestMatchStringSimilarity(userQuestion: string): string | null {
     return matchedQuestion ? matchedQuestion.answer : null;
   }
 
-  return null;
-}
-
-// Function to find the best match using NLP (TF-IDF and cosine similarity)
-function findBestMatchNLP(userQuestion: string): string | null {
-  const processedUserQuestion = tokenizer.tokenize(userQuestion).map(stemmer).join(' ');
-
-  const scores: number[] = [];
-  tfidf.tfidfs(processedUserQuestion, (i, score) => {
-    scores[i] = score;
-  });
-
-  const bestMatchIndex = scores.indexOf(Math.max(...scores));
-  const bestMatch = processedQuestions[bestMatchIndex];
-
-  if (scores[bestMatchIndex] >= nlpSimilarityThreshold) {
-    return bestMatch.answer;
-  }
-
-  return null;
-}
-
-// Combined function to find the best match
-export function findBestMatch(userQuestion: string): string | null {
-  // Try string similarity first
-  const stringSimilarityAnswer = findBestMatchStringSimilarity(userQuestion);
-  if (stringSimilarityAnswer) {
-    return stringSimilarityAnswer;
-  }
-
-  // Fall back to NLP if no match found
-  const nlpAnswer = findBestMatchNLP(userQuestion);
-  if (nlpAnswer) {
-    return nlpAnswer;
-  }
-
-  // No match found
   return null;
 }
