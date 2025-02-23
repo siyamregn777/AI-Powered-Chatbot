@@ -1,5 +1,4 @@
-// src/app/page.tsx
-'use client'; // Mark as a Client Component
+'use client';
 import { useState } from 'react';
 import styles from '../styles/Chat.module.css';
 
@@ -10,7 +9,7 @@ export default function Home() {
   const handleSend = async () => {
     if (input.trim()) {
       const userMessage = { role: 'user', content: input };
-      setMessages((prev: { role: string; content: string }[]) => [...prev, userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
 
       // Send user input to the API route
       const response = await fetch('/api/chat', {
@@ -21,7 +20,7 @@ export default function Home() {
 
       const data = await response.json();
       const botMessage = { role: 'bot', content: data.reply };
-      setMessages((prev: { role: string; content: string }[]) => [...prev, botMessage]);
+      setMessages((prev) => [...prev, botMessage]);
 
       setInput('');
     }
@@ -30,7 +29,7 @@ export default function Home() {
   return (
     <div className={styles.chatContainer}>
       <div className={styles.messages}>
-        {messages.map((msg: { role: string; content: string }, index: number) => (
+        {messages.map((msg, index) => (
           <div key={index} className={msg.role === 'user' ? styles.userMessage : styles.botMessage}>
             {msg.content}
           </div>
