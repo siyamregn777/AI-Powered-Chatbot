@@ -1,0 +1,15 @@
+# Ignore node_modules
+node_modules/
+
+# Ignore build directories
+/dist/
+/build/
+
+# Ignore .env files
+.env
+
+# Ignore IDE settings (e.g., VS Code)
+.vscode/
+
+# Ignore log files
+*.log
