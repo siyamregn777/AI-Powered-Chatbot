@@ -1,6 +1,5 @@
 import { OpenAI } from 'openai';
-import db from '@/lib/db.mjs'; // Update the import pathimport { findBestMatch } from '@/lib/knowledgeBase';
-import { ResultSetHeader } from 'mysql2'; // Import ResultSetHeader
+import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
 import { findBestMatch } from '@/lib/knowledgeBase';
 
 const openai = new OpenAI({
@@ -11,19 +10,31 @@ export async function POST(request: Request) {
   const { message } = await request.json();
 
   try {
-    // Save user question to MySQL
-    const insertQuery = 'INSERT INTO chat_history (user_message) VALUES (?)';
-    const [result] = await db.query<ResultSetHeader>(insertQuery, [message]); // Explicitly type result
+    // Save user question to Supabase
+    const { data: insertResult, error: insertError } = await supabase
+      .from('chat_history')
+      .insert([{ user_message: message }])
+      .select();
 
-    // Get the inserted row ID
-    const insertedId = result.insertId;
+    if (insertError) {
+      throw insertError;
+    }
+
+    const insertedId = insertResult[0].id;
 
     // Try to find an answer in the knowledge base
     const kbAnswer = findBestMatch(message);
     if (kbAnswer) {
       // Update the chat history with the bot's reply
-      const updateQuery = 'UPDATE chat_history SET bot_reply = ? WHERE id = ?';
-      await db.query(updateQuery, [kbAnswer, insertedId]);
+      const { error: updateError } = await supabase
+        .from('chat_history')
+        .update({ bot_reply: kbAnswer })
+        .eq('id', insertedId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
       return Response.json({ reply: kbAnswer });
     }
 
@@ -42,8 +53,14 @@ export async function POST(request: Request) {
     const reply = completion.choices[0].message.content;
 
     // Update the chat history with the bot's reply
-    const updateQuery = 'UPDATE chat_history SET bot_reply = ? WHERE id = ?';
-    await db.query(updateQuery, [reply, insertedId]);
+    const { error: updateError } = await supabase
+      .from('chat_history')
+      .update({ bot_reply: reply })
+      .eq('id', insertedId);
+
+    if (updateError) {
+      throw updateError;
+    }
 
     return Response.json({ reply });
   } catch (error) {

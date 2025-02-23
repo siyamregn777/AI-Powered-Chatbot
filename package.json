@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/siyamregn777/AI-Powered-Chatbot#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
     "ai-powered-chatbot": "file:",
     "compromise": "^14.14.4",
     "cors": "^2.8.5",
