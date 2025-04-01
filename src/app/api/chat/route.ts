@@ -1,3 +1,5 @@
+//route.ts
+
 import { OpenAI } from 'openai';
 import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
 import { findBestMatch } from '@/lib/knowledgeBase';

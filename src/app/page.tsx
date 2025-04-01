@@ -1,135 +1,165 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import styles from '../styles/Chat.module.css';
 
-export default function Home() {
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([
-    { role: 'bot', content: 'What can I help you with today?' },
+type Message = {
+  role: 'user' | 'bot';
+  content: string;
+};
+
+export default function Chat() {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'bot', content: 'Hello! How can I assist you today?' },
   ]);
-  const [input, setInput] = useState('');
-  const [lastActivity, setLastActivity] = useState(Date.now());
-  const [isTyping, setIsTyping] = useState(false); // Track typing state
+  const [input, setInput] = useState<string>('');
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch chat history on page load
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    const fetchChatHistory = async () => {
-      try {
-        const response = await fetch('/api/chat/history');
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          const formattedMessages = data.map((msg) => ({
-            role: 'bot',
-            content: msg.bot_reply || 'What can I help you with today?',
-          }));
-          setMessages(formattedMessages);
-        }
-      } catch (error) {
-        console.error('Error fetching chat history:', error);
-      }
-    };
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-    fetchChatHistory();
-  }, []);
-
-  // Clear chat history after 20 minutes of inactivity
+  // Clear chat after 20 minutes of inactivity
   useEffect(() => {
-    const inactivityTimer = setInterval(() => {
+    const timer = setInterval(() => {
       if (Date.now() - lastActivity > 20 * 60 * 1000) {
-        setMessages([]);
+        setMessages([{ role: 'bot', content: 'Hello! How can I assist you today?' }]);
       }
     }, 1000);
-
-    return () => clearInterval(inactivityTimer);
+    return () => clearInterval(timer);
   }, [lastActivity]);
 
-  // Function to simulate typing effect
   const simulateTyping = (text: string, callback: () => void) => {
     let index = 0;
     const interval = setInterval(() => {
       if (index < text.length) {
         setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage.role === 'bot') {
-            // Update the last bot message with the new content
-            return [
-              ...prev.slice(0, -1),
-              { ...lastMessage, content: text.slice(0, index + 1) },
-            ];
-          }
-          return prev;
+          const last = prev[prev.length - 1];
+          return last.role === 'bot'
+            ? [...prev.slice(0, -1), { ...last, content: text.substring(0, index + 1) }]
+            : prev;
         });
         index++;
       } else {
         clearInterval(interval);
         callback();
       }
-    }, 50); // Adjust typing speed (milliseconds per character)
+    }, 20);
   };
 
   const handleSend = async () => {
-    if (input.trim()) {
-      const userMessage = { role: 'user', content: input };
-      setMessages((prev) => [...prev, userMessage]);
-      setLastActivity(Date.now());
+    if (!input.trim()) return;
 
-      if (input.toLowerCase() === 'clear' || input.toLowerCase() === 'delete') {
-        setMessages([]);
-        setInput('');
-        return;
-      }
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    setLastActivity(Date.now());
 
-      // Add a placeholder bot message
-      setMessages((prev) => [...prev, { role: 'bot', content: '' }]);
-      setIsTyping(true);
+    if (input.toLowerCase() === 'clear') {
+      setMessages([{ role: 'bot', content: 'Hello! How can I assist you today?' }]);
+      setInput('');
+      return;
+    }
 
-      // Send user input to the API route
-      const response = await fetch('/api/chat', {
+    // Add empty bot message for typing indicator
+    setMessages((prev) => [...prev, { role: 'bot', content: '' }]);
+    setIsTyping(true);
+    setInput('');
+
+    try {
+      // First try to get response from knowledge base
+      const kbResponse = await fetch('/api/knowledge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
       });
-
-      const data = await response.json();
-      const botReply = data.reply;
-
-      // Simulate typing effect for the bot's reply
-      simulateTyping(botReply, () => {
-        setIsTyping(false); // Stop typing animation
-      });
-
-      setInput('');
-    }
-  };
-
-  // Handle "Enter" key press
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      handleSend();
+      
+      const kbData = await kbResponse.json();
+      
+      if (kbData.reply) {
+        // Found in knowledge base
+        simulateTyping(kbData.reply, () => setIsTyping(false));
+      } else {
+        // Not found in knowledge base, use GPT-3.5
+        const gptResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: input }),
+        });
+        
+        const gptData = await gptResponse.json();
+        simulateTyping(gptData.reply, () => setIsTyping(false));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        { role: 'bot', content: 'Sorry, I encountered an error. Please try again.' },
+      ]);
+      setIsTyping(false);
     }
   };
 
   return (
     <div className={styles.chatContainer}>
-      <div className={styles.messages}>
-        {messages.map((msg, index) => (
-          <div key={index} className={msg.role === 'user' ? styles.userMessage : styles.botMessage}>
-            {msg.content}
-            {isTyping && index === messages.length - 1 && <span className={styles.cursor}>|</span>}
+      {/* Header */}
+      <header className={styles.header}>
+        <h1 className={styles.headerTitle}>ChatBot</h1>
+      </header>
+
+      {/* Messages container */}
+      <div className={styles.messagesContainer}>
+        {messages.map((msg: Message, index: number) => (
+          <div
+            key={index}
+            className={`${styles.messageWrapper} ${
+              msg.role === 'user' ? styles.userMessageWrapper : styles.botMessageWrapper
+            }`}
+          >
+            <div
+              className={`${styles.messageBubble} ${
+                msg.role === 'user' ? styles.userMessageBubble : styles.botMessageBubble
+              }`}
+            >
+              {msg.content}
+              {isTyping && index === messages.length - 1 && (
+                <span className={styles.typingIndicator}></span>
+              )}
+            </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
-      <div className={styles.inputContainer}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className={styles.input}
-          placeholder="Type your message..."
-        />
-        <button onClick={handleSend} className={styles.button}>
-          Send
-        </button>
+
+      {/* Input area */}
+      <div className={styles.inputArea}>
+        <div className={styles.inputContainer}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            className={styles.inputField}
+            placeholder="Type your message..."
+            disabled={isTyping}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isTyping}
+            className={`${styles.sendButton} ${
+              !input.trim() || isTyping
+                ? styles.sendButtonDisabled
+                : styles.sendButtonActive
+            }`}
+          >
+            Send
+          </button>
+        </div>
+        <p className={styles.disclaimer}>
+          ChatBot can make mistakes. Consider checking important information.
+        </p>
       </div>
     </div>
   );
