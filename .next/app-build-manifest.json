@@ -17,10 +17,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/chat/route.js"
     ],
-    "/_not-found/page": [
+    "/api/knowledge/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/api/knowledge/route.js"
     ]
   }
 }
