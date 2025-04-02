@@ -1829,7 +1829,7 @@ const knowledgeBase: { question: string; answer: string }[] = [
 ];
 
 
-const stringSimilarityThreshold = 0.6; // 60% similarity
+const stringSimilarityThreshold = 0.5; // 50% similarity
 
 // Function to find the best match using string similarity
 export function findBestMatch(userQuestion: string): string | null {
