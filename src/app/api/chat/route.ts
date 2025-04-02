@@ -1,15 +1,15 @@
-//route.ts
-
+// route.ts
 import { OpenAI } from 'openai';
-import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
+import { supabase } from '@/lib/supabaseClient';
 import { findBestMatch } from '@/lib/knowledgeBase';
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: Request) {
   const { message } = await request.json();
+  const customerSupportEmail = "supportteam@gmail.com";
+  const customerSupportPhone = "(+251) 961-177-953";
 
   try {
     // Save user question to Supabase
@@ -24,53 +24,68 @@ export async function POST(request: Request) {
 
     const insertedId = insertResult[0].id;
 
-    // Try to find an answer in the knowledge base
+    // Try to find an answer in the knowledge base first
     const kbAnswer = findBestMatch(message);
     if (kbAnswer) {
-      // Update the chat history with the bot's reply
-      const { error: updateError } = await supabase
+      await supabase
         .from('chat_history')
         .update({ bot_reply: kbAnswer })
         .eq('id', insertedId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
+      
       return Response.json({ reply: kbAnswer });
     }
 
-    // If no match, use OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a helpful customer support assistant for an e-commerce website that sells shoes. Provide accurate and concise answers to user queries.',
-        },
-        { role: 'user', content: message },
-      ],
-    });
+    // If no KB match, try OpenAI with timeout
+    let openAIResponse = null;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-    const reply = completion.choices[0].message.content;
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful customer support assistant for an e-commerce website. Provide accurate and concise answers to user queries. If unsure, say you cannot answer.',
+          },
+          { role: 'user', content: message },
+        ],
+        max_tokens: 150,
+      }, { signal: controller.signal });
 
-    // Update the chat history with the bot's reply
-    const { error: updateError } = await supabase
-      .from('chat_history')
-      .update({ bot_reply: reply })
-      .eq('id', insertedId);
-
-    if (updateError) {
-      throw updateError;
+      clearTimeout(timeout);
+      openAIResponse = completion.choices[0].message.content;
+    } catch (openAIError) {
+      console.error('OpenAI Error:', openAIError);
+      openAIResponse = null;
     }
 
-    return Response.json({ reply });
-  } catch (error) {
-    console.error('Error:', error);
+    // Prepare final response
+    let finalReply = '';
+    if (openAIResponse && !openAIResponse.toLowerCase().includes("i don't know") && 
+        !openAIResponse.toLowerCase().includes("i cannot answer")) {
+      finalReply = openAIResponse;
+    } else {
+      finalReply = `I couldn't find a specific answer to your question. For further assistance, please:\n\n` +
+                  `- Email us at ${customerSupportEmail}\n` +
+                  `- Call our support team at ${customerSupportPhone}\n` 
+    }
 
-    // Fallback response
-    return Response.json({
-      reply: 'Sorry, I am unable to process your request at the moment. Please try again later.',
-    });
+    // Update chat history with final reply
+    await supabase
+      .from('chat_history')
+      .update({ bot_reply: finalReply })
+      .eq('id', insertedId);
+
+    return Response.json({ reply: finalReply });
+
+  } catch (error) {
+    console.error('System Error:', error);
+    
+    // Comprehensive fallback with contact options
+    const fallbackReply = `Sorry, I'm unable to process your request at the moment. Please try one of these options:\n\n` +
+                         `1. Email: ${customerSupportEmail}\n` +
+                         `2. Phone: ${customerSupportPhone}\n` 
+    return Response.json({ reply: fallbackReply });
   }
 }

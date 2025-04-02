@@ -106,7 +106,7 @@ export default function Chat() {
     <div className={styles.chatContainer}>
       {/* Header */}
       <header className={styles.header}>
-        <h1 className={styles.headerTitle}>ChatBot</h1>
+        <h1 className={styles.headerTitle}>Ecommerce ChatBot</h1>
       </header>
 
       {/* Messages container */}
@@ -158,7 +158,7 @@ export default function Chat() {
           </button>
         </div>
         <p className={styles.disclaimer}>
-          ChatBot can make mistakes. Consider checking important information.
+          ChatBot can make mistakes. Contact us using siyamregnyeshidagna777@gmail.com
         </p>
       </div>
     </div>
