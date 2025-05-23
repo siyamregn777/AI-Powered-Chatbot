@@ -1,5 +1,5 @@
 import stringSimilarity from 'string-similarity';
-// Knowledge base with 100 questions and answers
+
 const knowledgeBase: { question: string; answer: string }[] = [
   {
     question: 'What is your return policy?',
@@ -1829,7 +1829,7 @@ const knowledgeBase: { question: string; answer: string }[] = [
 ];
 
 
-const stringSimilarityThreshold = 0.5; // 50% similarity
+const stringSimilarityThreshold = 0.3; // 50% similarity
 
 // Function to find the best match using string similarity
 export function findBestMatch(userQuestion: string): string | null {
